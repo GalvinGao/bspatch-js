@@ -19,9 +19,9 @@ async function bufferEqual(buffer1: ArrayBuffer, buffer2: ArrayBuffer) {
 
 const TEST_CASE = "stages";
 
-let base: ArrayBuffer;
-let patch: ArrayBuffer;
-let expected: ArrayBuffer;
+let base: Uint8Array;
+let patch: Uint8Array;
+let expected: Uint8Array;
 
 beforeAll(async () => {
   base = await readTestData(TEST_CASE + ".base");
@@ -31,9 +31,7 @@ beforeAll(async () => {
 
 describe("existing test data cases", () => {
   it("should successfully patch stages", async () => {
-    console.time("patch");
     const actual = await bspatch(base, patch);
-    console.timeEnd("patch");
 
     assert.equal(actual.byteLength, expected.byteLength, "byte length");
     try {

@@ -4,6 +4,7 @@ import { gunzipSync } from "fflate";
 
 const MAGIC = "BSDIFF40";
 const HEADER_SIZE = 32;
+const CONTROL_SIZE = 24;
 
 interface BsdiffHeader {
   magic: string;
@@ -55,10 +56,10 @@ async function decompressU8Array(array: ArrayBuffer): Promise<Uint8Array> {
 }
 
 export async function bspatch(
-  old: ArrayBuffer,
-  patch: ArrayBuffer
-): Promise<ArrayBuffer> {
-  const header = readHeader(new Uint8Array(patch));
+  oldBytes: Uint8Array,
+  patch: Uint8Array
+): Promise<Uint8Array> {
+  const header = readHeader(patch);
 
   const controlBlockEnd = HEADER_SIZE + header.ctrlLen;
   const diffBlockEnd = controlBlockEnd + header.diffLen;
@@ -73,7 +74,6 @@ export async function bspatch(
   const diffBlock = await decompressU8Array(compressedDiffBlock);
   const extraBlock = await decompressU8Array(compressedExtraBlock);
 
-  const oldBytes = new Uint8Array(old);
   const newBytes = new Uint8Array(header.newLen);
 
   // offsets
@@ -85,8 +85,10 @@ export async function bspatch(
 
   // apply patch
   while (newPos < header.newLen) {
-    const control = readControl(controlBlock.slice(ctrlPos, ctrlPos + 24));
-    ctrlPos += 24;
+    const control = readControl(
+      controlBlock.slice(ctrlPos, ctrlPos + CONTROL_SIZE)
+    );
+    ctrlPos += CONTROL_SIZE;
 
     if (
       newPos + control.bytesFromDiffBlock > header.newLen ||
@@ -128,5 +130,5 @@ export async function bspatch(
     extraPos += control.bytesFromExtraBlock;
   }
 
-  return newBytes.buffer;
+  return newBytes;
 }
