@@ -1,0 +1,25 @@
+{
+  "name": "bspatch",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "run": "esno src/debug-entry.ts",
+    "test": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/unbzip2-stream": "^1.4.0",
+    "esno": "^0.16.3",
+    "vitest": "^0.27.0"
+  },
+  "dependencies": {
+    "buffer": "^6.0.3",
+    "fflate": "^0.7.4",
+    "readable-stream": "^4.3.0",
+    "unbzip2-stream": "^1.4.3"
+  }
+}
