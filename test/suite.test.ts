@@ -1,4 +1,4 @@
-import { assert, describe, it } from "vitest";
+import { assert, beforeAll, describe, it } from "vitest";
 import { bspatch } from "../src";
 import { readTestData } from "./utils";
 
@@ -17,13 +17,20 @@ async function bufferEqual(buffer1: ArrayBuffer, buffer2: ArrayBuffer) {
   }
 }
 
+const TEST_CASE = "stages";
+
+let base: ArrayBuffer;
+let patch: ArrayBuffer;
+let expected: ArrayBuffer;
+
+beforeAll(async () => {
+  base = await readTestData(TEST_CASE + ".base");
+  patch = await readTestData(TEST_CASE + ".patchgz");
+  expected = await readTestData(TEST_CASE + ".expected");
+});
+
 describe("existing test data cases", () => {
   it("should successfully patch stages", async () => {
-    const cas = "stages";
-    const base = await readTestData(cas + ".base");
-    const patch = await readTestData(cas + ".patchgz");
-    const expected = await readTestData(cas + ".expected");
-
     console.time("patch");
     const actual = await bspatch(base, patch);
     console.timeEnd("patch");

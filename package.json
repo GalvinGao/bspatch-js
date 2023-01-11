@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "run": "esno src/debug-entry.ts",
+    "run": "esno --inspect-brk src/dbg.ts",
     "test": "vitest",
+    "bench": "vitest bench",
     "coverage": "vitest run --coverage"
   },
   "keywords": [],

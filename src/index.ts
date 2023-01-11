@@ -1,8 +1,9 @@
-import { bigInt64FromU8Array, truncateBigInt } from "./utils";
+import { int64FromU8Array } from "./utils";
 // decompress has the signature of function decompress(): through.ThroughStream
 import { gunzipSync } from "fflate";
 
 const MAGIC = "BSDIFF40";
+const HEADER_SIZE = 32;
 
 interface BsdiffHeader {
   magic: string;
@@ -25,9 +26,9 @@ export function readHeader(array: Uint8Array): BsdiffHeader {
 
   return {
     magic,
-    ctrlLen: truncateBigInt(bigInt64FromU8Array(array.slice(8, 16))),
-    diffLen: truncateBigInt(bigInt64FromU8Array(array.slice(16, 24))),
-    newLen: truncateBigInt(bigInt64FromU8Array(array.slice(24, 32))),
+    ctrlLen: int64FromU8Array(array.slice(8, 16)),
+    diffLen: int64FromU8Array(array.slice(16, 24)),
+    newLen: int64FromU8Array(array.slice(24, 32)),
   };
 }
 
@@ -43,28 +44,14 @@ function readControl(array: Uint8Array): BsdiffControlBlock {
   // 0x08 8 bytes little-endian integer bytesFromExtraBlock
   // 0x16 8 bytes little-endian integer seekInInput
   return {
-    bytesFromDiffBlock: truncateBigInt(bigInt64FromU8Array(array.slice(0, 8))),
-    bytesFromExtraBlock: truncateBigInt(
-      bigInt64FromU8Array(array.slice(8, 16))
-    ),
-    seekInInput: truncateBigInt(bigInt64FromU8Array(array.slice(16, 24))),
+    bytesFromDiffBlock: int64FromU8Array(array.slice(0, 8)),
+    bytesFromExtraBlock: int64FromU8Array(array.slice(8, 16)),
+    seekInInput: int64FromU8Array(array.slice(16, 24)),
   };
 }
 
 async function decompressU8Array(array: ArrayBuffer): Promise<Uint8Array> {
   return gunzipSync(new Uint8Array(array));
-}
-
-function add(left: Uint8Array, right: Uint8Array, offset: number, end: number) {
-  for (let i = offset; i < end; i++) {
-    left[i] += right[i];
-  }
-
-  return left;
-}
-
-function rolloverByte(n: number): number {
-  return n & 0xff;
 }
 
 export async function bspatch(
@@ -73,58 +60,30 @@ export async function bspatch(
 ): Promise<ArrayBuffer> {
   const header = readHeader(new Uint8Array(patch));
 
-  const compressedControlBlock = patch.slice(32, 32 + header.ctrlLen);
-  const compressedDiffBlock = patch.slice(
-    32 + header.ctrlLen,
-    32 + header.ctrlLen + header.diffLen
-  );
-  const compressedExtraBlock = patch.slice(
-    32 + header.ctrlLen + header.diffLen,
-    patch.byteLength
-  );
+  const controlBlockEnd = HEADER_SIZE + header.ctrlLen;
+  const diffBlockEnd = controlBlockEnd + header.diffLen;
+  const extraBlockEnd = patch.byteLength;
 
-  // decompress control block
-  console.time("decompress control block");
+  const compressedControlBlock = patch.slice(HEADER_SIZE, controlBlockEnd);
+  const compressedDiffBlock = patch.slice(controlBlockEnd, diffBlockEnd);
+  const compressedExtraBlock = patch.slice(diffBlockEnd, extraBlockEnd);
+
+  // decompress blocks
   const controlBlock = await decompressU8Array(compressedControlBlock);
-  console.timeEnd("decompress control block");
-  console.log(
-    "control block: original size",
-    compressedControlBlock.byteLength,
-    "decompressed size",
-    controlBlock.byteLength
-  );
-
-  // decompress diff block
-  console.time("decompress diff block");
   const diffBlock = await decompressU8Array(compressedDiffBlock);
-  console.timeEnd("decompress diff block");
-  console.log(
-    "diff block: original size",
-    compressedDiffBlock.byteLength,
-    "decompressed size",
-    diffBlock.byteLength
-  );
-
-  // decompress extra block
-  console.time("decompress extra block");
   const extraBlock = await decompressU8Array(compressedExtraBlock);
-  console.timeEnd("decompress extra block");
-  console.log(
-    "extra block: original size",
-    patch.byteLength - (32 + header.ctrlLen + header.diffLen),
-    "decompressed size",
-    extraBlock.byteLength
-  );
 
   const oldBytes = new Uint8Array(old);
   const newBytes = new Uint8Array(header.newLen);
 
-  // apply patch
+  // offsets
   let newPos = 0;
   let oldPos = 0;
   let ctrlPos = 0;
   let diffPos = 0;
   let extraPos = 0;
+
+  // apply patch
   while (newPos < header.newLen) {
     const control = readControl(controlBlock.slice(ctrlPos, ctrlPos + 24));
     ctrlPos += 24;
@@ -137,16 +96,10 @@ export async function bspatch(
     }
 
     // copy bytes from diff block
-    for (let i = 0; i < control.bytesFromDiffBlock; i++) {
-      const readPos = newPos + i;
-      newBytes[readPos] = diffBlock[diffPos + i];
-    }
-
-    // rewrite "copy bytes from diff block" using a better performance approach:
-    // newBytes.set(
-    //   diffBlock.slice(diffPos, diffPos + control.bytesFromDiffBlock),
-    //   newPos
-    // );
+    newBytes.set(
+      diffBlock.slice(diffPos, diffPos + control.bytesFromDiffBlock),
+      newPos
+    );
 
     diffPos += control.bytesFromDiffBlock;
 
@@ -165,10 +118,10 @@ export async function bspatch(
     }
 
     // copy bytes from extra block
-    for (let i = 0; i < control.bytesFromExtraBlock; i++) {
-      const readPos = newPos + i;
-      newBytes[readPos] = extraBlock[extraPos + i];
-    }
+    newBytes.set(
+      extraBlock.slice(extraPos, extraPos + control.bytesFromExtraBlock),
+      newPos
+    );
 
     newPos += control.bytesFromExtraBlock;
     oldPos += control.seekInInput;

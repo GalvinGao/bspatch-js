@@ -1,14 +1,14 @@
 // little-endian
-export function bigInt64FromU8Array(array: Uint8Array): bigint {
+export function int64FromU8Array(array: Uint8Array): number {
   const result =
-    (BigInt(array[0] & 0xff) << BigInt(0 * 8)) |
-    (BigInt(array[1] & 0xff) << BigInt(1 * 8)) |
-    (BigInt(array[2] & 0xff) << BigInt(2 * 8)) |
-    (BigInt(array[3] & 0xff) << BigInt(3 * 8)) |
-    (BigInt(array[4] & 0xff) << BigInt(4 * 8)) |
-    (BigInt(array[5] & 0xff) << BigInt(5 * 8)) |
-    (BigInt(array[6] & 0xff) << BigInt(6 * 8)) |
-    (BigInt(array[7] & 0x7f) << BigInt(7 * 8));
+    ((array[0] & 0xff) << (0 * 8)) |
+    ((array[1] & 0xff) << (1 * 8)) |
+    ((array[2] & 0xff) << (2 * 8)) |
+    ((array[3] & 0xff) << (3 * 8)) |
+    ((array[4] & 0xff) << (4 * 8)) |
+    ((array[5] & 0xff) << (5 * 8)) |
+    ((array[6] & 0xff) << (6 * 8)) |
+    ((array[7] & 0x7f) << (7 * 8));
   const signed = (array[7] & 0x80) != 0;
   return signed ? -result : result;
 }
