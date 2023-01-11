@@ -1,6 +1,6 @@
 # `bspatch`
 
-> Warning
+> **Warning**
 > This project is NOT an exact implementation that complies with the bsdiff4 format used in [Colin Percival's bsdiff/bspatch binary](https://www.daemonology.net/bsdiff/).
 > Colin Percival (and many others) uses bzip2 as the compression algorithm, however it is too slow and I can't find a decent JS implementation. Thus, gzip (inflate) is used instead.
 
